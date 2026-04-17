@@ -1,0 +1,1348 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Sailor Piece — Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Nunito:wght@400;600&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#080b10;--card:#111820;--border:#1e2a35;--surface:#0e1318;
+  --accent:#00c8ff;--accent2:#ff6b35;--gold:#ffd166;
+  --text:#d0dde8;--muted:#4a6070;--success:#00e5a0;--danger:#ff4757;
+  --purple:#9c27b0;
+}
+body{background:var(--bg);color:var(--text);font-family:'Nunito',sans-serif;min-height:100vh;overflow-x:hidden}
+body::before{content:'';position:fixed;top:-50%;left:-50%;width:200%;height:200%;
+  background:radial-gradient(ellipse at 30% 20%,rgba(0,200,255,.05) 0%,transparent 50%),
+             radial-gradient(ellipse at 70% 80%,rgba(255,107,53,.05) 0%,transparent 50%);
+  pointer-events:none;z-index:0}
+.wrap{position:relative;z-index:1;max-width:480px;margin:0 auto;padding:16px}
+
+/* HEADER */
+.hdr{display:flex;align-items:center;justify-content:space-between;padding:12px 0;margin-bottom:14px;border-bottom:1px solid var(--border)}
+.hdr h1{font-family:'Rajdhani',sans-serif;font-size:19px;font-weight:700;letter-spacing:2px;color:var(--accent);text-transform:uppercase}
+.hdr-sub{margin-top:2px;display:flex;align-items:center;gap:6px}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--muted);flex-shrink:0}
+.dot.live{background:var(--success);box-shadow:0 0 6px var(--success);animation:pulse 2s infinite}
+.dot.err{background:var(--danger)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.spin{display:inline-block;animation:rot 1s linear infinite;font-size:12px}
+@keyframes rot{to{transform:rotate(360deg)}}
+
+/* TABS */
+.tabs{display:flex;gap:0;margin-bottom:16px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:4px}
+.tab{flex:1;padding:8px 4px;text-align:center;font-family:'Rajdhani',sans-serif;font-size:11px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--muted);cursor:pointer;border-radius:7px;transition:all .2s}
+.tab.active{background:var(--accent);color:#000}
+
+/* PAGES */
+.page{display:none}.page.active{display:block}
+
+/* STATS */
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px}
+.sc{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px 8px;text-align:center}
+.sv{font-family:'Rajdhani',sans-serif;font-size:20px;font-weight:700;color:var(--accent);line-height:1}
+.sv.g{color:var(--gold)}.sv.o{color:var(--accent2)}
+.sl{font-size:10px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-top:2px}
+
+/* CONTROLS */
+.ctrl{display:flex;gap:8px;margin-bottom:12px}
+.srch{flex:1;background:var(--card);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;padding:8px 12px;outline:none}
+.srch:focus{border-color:var(--accent)}
+.srch::placeholder{color:var(--muted)}
+.sbtn{background:var(--card);border:1px solid var(--border);border-radius:8px;color:var(--muted);font-size:11px;padding:8px 10px;cursor:pointer;font-family:'Rajdhani',sans-serif;white-space:nowrap}
+.sbtn.on{border-color:var(--accent);color:var(--accent)}
+.rbtn{background:none;border:1px solid var(--border);border-radius:8px;color:var(--danger);font-size:14px;padding:8px 10px;cursor:pointer}
+
+/* SECTION */
+.sec{font-family:'Rajdhani',sans-serif;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:8px;display:flex;align-items:center;gap:8px}
+.sec::after{content:'';flex:1;height:1px;background:var(--border)}
+
+/* LOOT CARDS */
+#grid{display:flex;flex-direction:column;gap:7px}
+.lc{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:9px 12px;display:flex;align-items:center;gap:10px;animation:si .3s ease;transition:border .2s}
+.lc:hover{border-color:rgba(0,200,255,.3)}
+.lc.nw{border-color:var(--accent);animation:glow .8s ease}
+@keyframes si{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
+@keyframes glow{0%,100%{box-shadow:none}50%{box-shadow:0 0 14px rgba(0,200,255,.3)}}
+.iw{width:42px;height:42px;border-radius:8px;background:var(--surface);border:1px solid var(--border);overflow:hidden;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:20px}
+.iw img{width:100%;height:100%;object-fit:cover}
+.ii{flex:1;min-width:0}
+.in{font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.is{font-size:11px;color:var(--muted);margin-top:1px}
+/* CRR tag below rarity */
+.icrr{font-size:10px;margin-top:3px;display:flex;align-items:center;gap:4px}
+.icrr-val{font-family:'Rajdhani',sans-serif;font-weight:700;font-size:12px;color:var(--gold)}
+.icrr-val.loading{color:var(--muted);animation:blink 1s infinite}
+.icrr-val.err{color:var(--danger);font-size:10px}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+.iq{text-align:right;flex-shrink:0}
+.qt{font-family:'Rajdhani',sans-serif;font-size:19px;font-weight:700;color:var(--accent);line-height:1}
+.qi{font-size:10px;color:var(--muted);margin-top:2px}
+.r-common{color:#aaa}.r-uncommon{color:#4caf50}.r-rare{color:#2196f3}
+.r-epic{color:var(--purple)}.r-legendary{color:var(--gold)}.r-mythical{color:var(--accent2)}.r-secret{color:var(--accent)}
+
+/* CRR REFRESH BAR */
+.crr-bar{display:flex;align-items:center;justify-content:space-between;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:8px 12px;margin-bottom:12px;gap:8px}
+.crr-bar-info{font-size:11px;color:var(--muted)}
+.crr-bar-status{font-size:11px;color:var(--success);font-family:'Rajdhani',sans-serif;font-weight:600}
+.crr-bar-status.loading{color:var(--gold)}
+.crr-bar-status.err{color:var(--danger)}
+.crr-mini-btn{background:none;border:1px solid var(--border);border-radius:6px;color:var(--accent);font-size:11px;padding:4px 10px;cursor:pointer;font-family:'Rajdhani',sans-serif;white-space:nowrap}
+.crr-mini-btn:hover{border-color:var(--accent);background:rgba(0,200,255,.08)}
+.crr-mini-btn:disabled{opacity:.4;cursor:not-allowed}
+
+/* CRAFT */
+.craft-select{width:100%;background:var(--card);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:13px;padding:10px 12px;outline:none;margin-bottom:14px;appearance:none;cursor:pointer}
+.craft-select:focus{border-color:var(--accent)}
+.craft-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:12px}
+.craft-title{font-family:'Rajdhani',sans-serif;font-size:16px;font-weight:700;color:var(--gold);margin-bottom:4px}
+.craft-type{font-size:11px;color:var(--muted);margin-bottom:12px}
+.craft-can{display:flex;align-items:center;justify-content:space-between;background:var(--surface);border-radius:8px;padding:10px 12px;margin-bottom:12px}
+.craft-can-label{font-size:12px;color:var(--muted)}
+.craft-can-val{font-family:'Rajdhani',sans-serif;font-size:24px;font-weight:700}
+.craft-can-val.ok{color:var(--success)}.craft-can-val.no{color:var(--danger)}.craft-can-val.part{color:var(--gold)}
+.mat-list{display:flex;flex-direction:column;gap:7px}
+.mat-row{display:flex;align-items:center;justify-content:space-between;padding:8px 10px;background:var(--surface);border-radius:8px;border:1px solid var(--border)}
+.mat-row.done{border-color:rgba(0,229,160,.3)}.mat-row.miss{border-color:rgba(255,71,87,.2)}
+.mat-name{font-size:13px;font-weight:600}
+.mat-sub{font-size:11px;color:var(--muted);margin-top:1px}
+.mat-qty{text-align:right}
+.mat-have{font-family:'Rajdhani',sans-serif;font-size:16px;font-weight:700;line-height:1}
+.mat-have.ok{color:var(--success)}.mat-have.no{color:var(--danger)}
+.mat-need{font-size:10px;color:var(--muted)}
+.non-trackable{background:var(--surface);border-radius:8px;padding:10px 12px;margin-top:10px}
+.non-trackable-title{font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:6px;font-family:'Rajdhani',sans-serif}
+.non-trackable-item{font-size:12px;color:var(--text);padding:3px 0;display:flex;justify-content:space-between}
+.empty{text-align:center;padding:40px 20px;color:var(--muted)}
+.empty .ico{font-size:36px;margin-bottom:10px}
+.empty p{font-size:13px;line-height:1.6}
+.lu{text-align:center;font-size:11px;color:var(--muted);margin-top:16px;padding-bottom:16px}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px 16px;font-size:12px;color:var(--text);transition:transform .3s;z-index:999;white-space:nowrap}
+.toast.show{transform:translateX(-50%) translateY(0)}
+.badge{display:inline-block;font-size:9px;padding:2px 6px;border-radius:4px;font-family:'Rajdhani',sans-serif;letter-spacing:.5px;text-transform:uppercase;margin-left:6px}
+.badge-sword{background:rgba(0,200,255,.15);color:var(--accent)}
+.badge-melee{background:rgba(255,107,53,.15);color:var(--accent2)}
+.badge-fmove{background:rgba(255,209,102,.15);color:var(--gold)}
+
+/* ══ VALUE LIST PAGE ══ */
+.vl-bar{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+.vl-search{flex:1;min-width:160px;background:var(--card);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;padding:8px 12px;outline:none}
+.vl-search:focus{border-color:var(--accent)}
+.vl-search::placeholder{color:var(--muted)}
+.vl-cat{background:var(--card);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:12px;padding:8px 10px;outline:none;cursor:pointer;font-family:'Rajdhani',sans-serif}
+.vl-cat:focus{border-color:var(--accent)}
+.vl-refresh-btn{background:var(--accent);border:none;border-radius:8px;color:#000;font-size:11px;font-family:'Rajdhani',sans-serif;font-weight:700;letter-spacing:1px;padding:8px 14px;cursor:pointer;white-space:nowrap}
+.vl-refresh-btn:disabled{opacity:.4;cursor:not-allowed;background:var(--muted)}
+.vl-auto-label{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted);cursor:pointer;padding:4px 0}
+.vl-toggle{width:30px;height:17px;background:var(--border);border-radius:9px;position:relative;cursor:pointer;border:none;flex-shrink:0;transition:background .2s}
+.vl-toggle.on{background:var(--success)}
+.vl-toggle::after{content:'';position:absolute;width:11px;height:11px;background:#fff;border-radius:50%;top:3px;left:3px;transition:transform .2s}
+.vl-toggle.on::after{transform:translateX(13px)}
+.vl-status{font-size:10px;color:var(--muted);margin-bottom:10px;display:flex;justify-content:space-between}
+.vl-progress{height:2px;background:var(--border);border-radius:2px;margin-bottom:12px;overflow:hidden}
+.vl-progress-bar{height:100%;background:var(--accent);border-radius:2px;transition:width .3s;width:0%}
+#vl-grid{display:flex;flex-direction:column;gap:6px}
+.vl-card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:9px 12px;display:flex;align-items:center;gap:10px;transition:border .2s}
+.vl-card:hover{border-color:rgba(0,200,255,.25)}
+.vl-card-img{width:36px;height:36px;border-radius:7px;background:var(--surface);border:1px solid var(--border);overflow:hidden;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:16px}
+.vl-card-img img{width:100%;height:100%;object-fit:cover}
+.vl-card-info{flex:1;min-width:0}
+.vl-card-name{font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.vl-card-cat{font-size:10px;color:var(--muted);margin-top:1px;letter-spacing:.5px}
+.vl-card-right{text-align:right;flex-shrink:0}
+.vl-card-crr{font-family:'Rajdhani',sans-serif;font-size:16px;font-weight:700;color:var(--gold);line-height:1}
+.vl-card-crr.loading{color:var(--muted);font-size:11px;animation:blink 1s infinite}
+.vl-card-crr.err{color:var(--danger);font-size:10px}
+.vl-card-demand{font-size:10px;color:var(--muted);margin-top:2px}
+.vl-empty-batch{text-align:center;padding:30px;color:var(--muted);font-size:12px}
+
+/* ══ SHOP PAGE ══ */
+.shop-summary{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px}
+.shop-sc{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px 12px}
+.shop-sv{font-family:'Rajdhani',sans-serif;font-size:18px;font-weight:700;color:var(--gold);line-height:1}
+.shop-sl{font-size:10px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-top:2px}
+.shop-search-wrap{position:relative;margin-bottom:12px}
+.shop-search{width:100%;background:var(--card);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;padding:8px 36px 8px 12px;outline:none}
+.shop-search:focus{border-color:var(--accent)}
+.shop-search::placeholder{color:var(--muted)}
+.shop-search-clear{position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px;display:none}
+.shop-legend{display:flex;gap:16px;font-size:11px;color:var(--muted);margin-bottom:12px}
+.shop-legend span{display:flex;align-items:center;gap:5px}
+.shop-item{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:6px;transition:border .15s}
+.shop-item.selected{border-color:var(--accent);background:#0d1a24}
+.shop-item.out-of-stock{opacity:.5}
+.shop-item-header{display:flex;align-items:center;gap:10px;cursor:pointer;user-select:none}
+.shop-item-check{width:20px;height:20px;border-radius:5px;border:1.5px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0;transition:all .15s;background:var(--surface)}
+.shop-item.selected .shop-item-check{background:var(--accent);border-color:var(--accent);color:#000}
+.shop-item-name{font-family:'Rajdhani',sans-serif;font-size:15px;font-weight:700;flex:1}
+.shop-stock-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+.shop-stock-dot.in{background:var(--success);box-shadow:0 0 6px var(--success)}
+.shop-stock-dot.out{background:var(--danger)}
+.shop-item-body{margin-top:10px;padding-top:10px;border-top:1px solid var(--border);display:none}
+.shop-item.expanded .shop-item-body{display:block}
+.shop-inputs{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px}
+.shop-input-group label{font-size:10px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;display:block}
+.shop-input{width:100%;background:var(--surface);border:1px solid var(--border);border-radius:7px;color:var(--text);font-size:14px;font-family:'Rajdhani',sans-serif;font-weight:600;padding:7px 10px;outline:none;text-align:center}
+.shop-input:focus{border-color:var(--accent)}
+.shop-calc-row{display:flex;align-items:center;justify-content:space-between;background:var(--surface);border-radius:7px;padding:7px 12px;margin-bottom:6px}
+.shop-calc-label{font-size:11px;color:var(--muted)}
+.shop-calc-val{font-family:'Rajdhani',sans-serif;font-size:16px;font-weight:700;color:var(--gold)}
+/* CRR live inside shop card */
+.shop-crr-row{display:flex;align-items:center;justify-content:space-between;background:var(--surface);border-radius:7px;padding:6px 12px}
+.shop-crr-label{font-size:10px;color:var(--muted)}
+.shop-crr-live{font-family:'Rajdhani',sans-serif;font-size:14px;font-weight:700;color:var(--accent)}
+.shop-crr-live.loading{color:var(--muted);animation:blink 1s infinite;font-size:11px}
+.shop-crr-live.err{color:var(--danger);font-size:10px}
+.shop-inv-sync{font-size:10px;color:var(--accent);cursor:pointer;margin-top:6px;text-align:right}
+.shop-inv-sync:hover{text-decoration:underline}
+.trade-panel{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;margin-top:16px}
+.trade-panel-title{font-family:'Rajdhani',sans-serif;font-size:12px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:10px;display:flex;align-items:center;justify-content:space-between}
+.trade-text-box{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px;font-size:12px;line-height:1.9;color:var(--text);white-space:pre-wrap;min-height:60px;font-family:'Nunito',sans-serif;word-break:break-word}
+.trade-actions{display:flex;gap:8px;margin-top:10px}
+.btn-copy{flex:1;background:var(--accent);color:#000;border:none;border-radius:8px;padding:10px;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;letter-spacing:1px;cursor:pointer;transition:all .2s}
+.btn-copy:hover{filter:brightness(1.1)}
+.btn-sel-all{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 14px;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:600;color:var(--muted);cursor:pointer}
+.btn-sel-all:hover{border-color:var(--accent);color:var(--accent)}
+.btn-sel-none{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 14px;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:600;color:var(--muted);cursor:pointer}
+.btn-sel-none:hover{border-color:var(--danger);color:var(--danger)}
+
+/* ══ ASCENSION PAGE ══ */
+.asc-lvl-btn{padding:8px 14px;border-radius:8px;border:1px solid var(--border);background:var(--card);color:var(--muted);font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;cursor:pointer;transition:all .2s}
+.asc-lvl-btn.active{background:var(--gold);color:#000;border-color:var(--gold);box-shadow:0 0 12px rgba(255,209,102,.3)}
+.asc-lvl-btn.done{border-color:var(--success);color:var(--success)}
+.asc-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:12px}
+.asc-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.asc-title{font-family:'Rajdhani',sans-serif;font-size:20px;font-weight:700;color:var(--gold)}
+.asc-reward{font-size:10px;padding:4px 8px;border-radius:6px;background:rgba(255,209,102,.1);border:1px solid rgba(255,209,102,.3);color:var(--gold);font-family:'Rajdhani',sans-serif;font-weight:600}
+.asc-req-wrap{background:var(--surface);border-radius:8px;padding:10px 12px;margin-bottom:12px}
+.asc-req-title{font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:8px;font-family:'Rajdhani',sans-serif}
+.asc-req-row{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border);font-size:12px}
+.asc-req-row:last-child{border-bottom:none}
+.asc-req-label{color:var(--muted)}
+.asc-req-val{font-family:'Rajdhani',sans-serif;font-weight:600;color:var(--text)}
+.asc-mat-title{font-family:'Rajdhani',sans-serif;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--accent);margin-bottom:8px}
+.asc-mat-row{display:flex;align-items:center;justify-content:space-between;padding:8px 10px;background:var(--surface);border-radius:8px;border:1px solid var(--border);margin-bottom:6px}
+.asc-mat-row.done{border-color:rgba(0,229,160,.3)}.asc-mat-row.miss{border-color:rgba(255,71,87,.2)}
+.asc-mat-name{font-size:13px;font-weight:600}
+.asc-mat-crr{font-size:10px;color:var(--accent);margin-top:2px;font-family:'Rajdhani',sans-serif}
+.asc-mat-right{text-align:right}
+.asc-mat-have{font-family:'Rajdhani',sans-serif;font-size:16px;font-weight:700;line-height:1}
+.asc-mat-have.ok{color:var(--success)}.asc-mat-have.no{color:var(--danger)}
+.asc-mat-sub{font-size:10px;color:var(--muted)}
+.asc-can{display:flex;align-items:center;justify-content:space-between;background:var(--surface);border-radius:8px;padding:10px 12px;margin-bottom:12px}
+.asc-can-val{font-family:'Rajdhani',sans-serif;font-size:18px;font-weight:700}
+.asc-can-val.ok{color:var(--success)}.asc-can-val.no{color:var(--danger)}.asc-can-val.part{color:var(--gold)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<!-- HEADER -->
+<div class="hdr">
+  <div>
+    <h1>⚓ Sailor Piece</h1>
+    <div class="hdr-sub">
+      <div class="dot" id="dot"></div>
+      <span id="stxt" style="font-size:11px;color:var(--muted)">Memuat...</span>
+    </div>
+  </div>
+  <div style="font-size:11px;color:var(--muted);display:flex;align-items:center;gap:4px">
+    <span id="spin" style="display:none" class="spin">↻</span>
+    <span id="cd"></span>
+  </div>
+</div>
+
+<!-- TABS -->
+<div class="tabs">
+  <div class="tab active" onclick="switchTab('loot')">📦 Loot</div>
+  <div class="tab" onclick="switchTab('craft')">⚔️ Craft</div>
+  <div class="tab" onclick="switchTab('values')">📊 Values</div>
+  <div class="tab" onclick="switchTab('shop')">🛒 Shop</div>
+  <div class="tab" onclick="switchTab('asc')">⬆️ Asc</div>
+</div>
+
+<!-- ══ LOOT PAGE ══ -->
+<div class="page active" id="page-loot">
+  <div class="stats">
+    <div class="sc"><div class="sv" id="s1">0</div><div class="sl">Item Types</div></div>
+    <div class="sc"><div class="sv g" id="s2">0</div><div class="sl">Total Drop</div></div>
+    <div class="sc"><div class="sv o" id="s3">0</div><div class="sl">Rare+</div></div>
+  </div>
+  <!-- CRR refresh bar for loot -->
+  <div class="crr-bar">
+    <div>
+      <div style="font-size:11px;font-family:'Rajdhani',sans-serif;font-weight:600;color:var(--text)">CRR Live Rate</div>
+      <div class="crr-bar-info" id="loot-crr-status">Belum di-fetch</div>
+    </div>
+    <div style="display:flex;gap:6px;align-items:center">
+      <label class="vl-auto-label">
+        <button class="vl-toggle" id="loot-auto-toggle" onclick="toggleLootAuto()"></button>
+        Auto
+      </label>
+      <button class="crr-mini-btn" id="loot-crr-btn" onclick="fetchLootCRR()">↻ Fetch</button>
+    </div>
+  </div>
+  <div class="ctrl">
+    <input class="srch" type="text" id="q" placeholder="Cari item..." oninput="renderLoot()" />
+    <button class="sbtn" id="sb" onclick="toggleSort()">QTY ↓</button>
+    <button class="rbtn" onclick="doReset()" title="Reset">🗑</button>
+  </div>
+  <div class="sec">Item Terkumpul</div>
+  <div id="grid"><div class="empty"><div class="ico">⏳</div><p>Memuat data...</p></div></div>
+  <div class="lu" id="lu"></div>
+</div>
+
+<!-- ══ CRAFT PAGE ══ -->
+<div class="page" id="page-craft">
+  <div class="sec">Pilih Item</div>
+  <select class="craft-select" id="craft-select" onchange="renderCraft()">
+    <option value="">— Pilih item yang mau di-craft —</option>
+  </select>
+  <div id="craft-result">
+    <div class="empty"><div class="ico">⚔️</div><p>Pilih item di atas untuk melihat<br>material yang dibutuhkan</p></div>
+  </div>
+</div>
+
+<!-- ══ VALUE LIST PAGE ══ -->
+<div class="page" id="page-values">
+  <div class="vl-bar">
+    <input class="vl-search" type="text" id="vlSearch" placeholder="🔍 Cari item..." oninput="filterVL()" />
+    <select class="vl-cat" id="vlCat" onchange="filterVL()">
+      <option value="">Semua</option>
+      <option value="Chests">Chests</option>
+      <option value="Boss Drop">Boss Drop</option>
+      <option value="Sets">Sets</option>
+      <option value="Crafting">Crafting</option>
+      <option value="Misc">Misc</option>
+      <option value="Ascensions">Ascensions</option>
+      <option value="Game Pass">Game Pass</option>
+    </select>
+  </div>
+  <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap">
+    <button class="vl-refresh-btn" id="vl-refresh-btn" onclick="startVLFetch()">⟳ Fetch All Values</button>
+    <label class="vl-auto-label">
+      <button class="vl-toggle" id="vl-auto-toggle" onclick="toggleVLAuto()"></button>
+      Auto (10min)
+    </label>
+  </div>
+  <div class="vl-status">
+    <span id="vl-status-txt">181 item tersedia · belum di-fetch</span>
+    <span id="vl-update-time">—</span>
+  </div>
+  <div class="vl-progress"><div class="vl-progress-bar" id="vl-progress-bar"></div></div>
+  <div id="vl-grid"></div>
+</div>
+
+<!-- ══ SHOP PAGE ══ -->
+<div class="page" id="page-shop">
+  <div class="shop-summary">
+    <div class="shop-sc">
+      <div class="shop-sv" id="shop-total-crr">0</div>
+      <div class="shop-sl">Total CRR (Inv × Harga)</div>
+    </div>
+    <div class="shop-sc">
+      <div class="shop-sv" style="color:var(--accent)" id="shop-selected-count">0 dipilih</div>
+      <div class="shop-sl">Siap Dagang</div>
+    </div>
+  </div>
+  <div class="shop-search-wrap">
+    <input class="shop-search" type="text" id="shopSearch" placeholder="🔍  Cari item..." oninput="renderShop()" autocomplete="off" />
+    <button class="shop-search-clear" id="shopSearchClear" onclick="clearShopSearch()">✕</button>
+  </div>
+  <div class="shop-legend">
+    <span><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--success);box-shadow:0 0 6px var(--success)"></span>Stok banyak</span>
+    <span><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--danger)"></span>No stock</span>
+  </div>
+  <div style="display:flex;gap:8px;margin-bottom:12px">
+    <button class="btn-sel-all" onclick="selectAll()">✓ All</button>
+    <button class="btn-sel-none" onclick="selectNone()">✕ None</button>
+    <button class="sbtn" onclick="syncAllFromInv()" style="flex:1;text-align:center">⟳ Sync Inv</button>
+    <button class="sbtn on" onclick="syncLootToShop()" title="Import item dari loot ke shop" style="flex:1;text-align:center">+ Dari Loot</button>
+  </div>
+  <div class="sec">Daftar Item</div>
+  <div id="shopItemsContainer"></div>
+  <div class="trade-panel">
+    <div class="trade-panel-title">
+      <span>📋 TEKS DAGANG</span>
+      <span style="font-size:10px;color:var(--success)" id="tradeItemCount">0 item</span>
+    </div>
+    <div class="trade-text-box" id="tradeTextBox">Pilih item di atas...</div>
+    <div class="trade-actions">
+      <button class="btn-copy" onclick="copyTradeText()">📋 Copy Teks</button>
+    </div>
+  </div>
+<!-- ══ ASCENSION PAGE ══ -->
+<div class="page" id="page-asc">
+  <!-- Level selector -->
+  <div class="sec">Pilih Level Ascension</div>
+  <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px" id="asc-level-btns"></div>
+  <div id="asc-card"></div>
+</div>
+
+</div><!-- /wrap -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ══════════════════════════════════════
+// CONFIG
+// ══════════════════════════════════════
+const FB_URL = "https://sailor-piece-afd9d-default-rtdb.asia-southeast1.firebasedatabase.app/loot.json";
+
+// ══════════════════════════════════════
+// ALL 181 ITEMS — slug list from VaultedValuesX
+// ══════════════════════════════════════
+const ALL_ITEMS = [
+  // Boss Drops
+  {slug:'blood-ring',name:'Blood Ring',cat:'Boss Drop'},
+  {slug:'azure-heart',name:'Azure Heart',cat:'Boss Drop'},
+  {slug:'path-fragment',name:'Path Fragment',cat:'Boss Drop'},
+  {slug:'reiatsu-core',name:'Reiatsu Core',cat:'Boss Drop'},
+  {slug:'slime-core',name:'Slime Core',cat:'Boss Drop'},
+  {slug:'evolution-fragment',name:'Evolution Fragment',cat:'Boss Drop'},
+  {slug:'atomic-omen',name:'Atomic Omen',cat:'Boss Drop'},
+  {slug:'atomic-core',name:'Atomic Core',cat:'Boss Drop'},
+  {slug:'corrupted-crown',name:'Corrupted Crown',cat:'Boss Drop'},
+  {slug:'dark-ring',name:'Dark Ring',cat:'Boss Drop'},
+  {slug:'eminence-essence',name:'Eminence Essence',cat:'Boss Drop'},
+  {slug:'eternal-core',name:'Eternal Core',cat:'Boss Drop'},
+  {slug:'phantasm-core',name:'Phantasm Core',cat:'Boss Drop'},
+  {slug:'slime-core',name:'Slime Core',cat:'Boss Drop'},
+  {slug:'soul-flame',name:'Soul Flame',cat:'Boss Drop'},
+  {slug:'transcendent-core',name:'Transcendent Core',cat:'Boss Drop'},
+  {slug:'moon-crest',name:'Moon Crest',cat:'Boss Drop'},
+  {slug:'ice-core',name:'Ice Core',cat:'Boss Drop'},
+  {slug:'infinity-essence',name:'Infinity Essence',cat:'Boss Drop'},
+  {slug:'transmutation-shard',name:'Transmutation Shard',cat:'Boss Drop'},
+  {slug:'slime-remnant',name:'Slime Remnant',cat:'Boss Drop'},
+  {slug:'dark-grail',name:'Dark Grail',cat:'Boss Drop'},
+  {slug:'frost-relic',name:'Frost Relic',cat:'Boss Drop'},
+  {slug:'abyss-sigil',name:'Abyss Sigil',cat:'Boss Drop'},
+  {slug:'calamity-seal',name:'Calamity Seal',cat:'Boss Drop'},
+  {slug:'upper-seal',name:'Upper Seal',cat:'Boss Drop'},
+  {slug:'tempest-relic',name:'Tempest Relic',cat:'Boss Drop'},
+  {slug:'battle-sigil',name:'Battle Sigil',cat:'Boss Drop'},
+  {slug:'shadow-heart',name:'Shadow Heart',cat:'Boss Drop'},
+  {slug:'shadow-crystal',name:'Shadow Crystal',cat:'Boss Drop'},
+  {slug:'fusion-ring',name:'Fusion Ring',cat:'Boss Drop'},
+  {slug:'lunar-essence',name:'Lunar Essence',cat:'Boss Drop'},
+  {slug:'soul-amulet',name:'Soul Amulet',cat:'Boss Drop'},
+  {slug:'power-remnant',name:'Power Remnant',cat:'Boss Drop'},
+  {slug:'six-eyes',name:'Six Eyes',cat:'Boss Drop'},
+  {slug:'corruption-core',name:'Corruption Core',cat:'Boss Drop'},
+  {slug:'dismantle-fang',name:'Dismantle Fang',cat:'Boss Drop'},
+  {slug:'atomic-with-sigil',name:'Atomic (with sigil)',cat:'Boss Drop'},
+  {slug:'curse-flesh',name:'Curse Flesh',cat:'Boss Drop'},
+  {slug:'passive-shard',name:'Passive Shard',cat:'Boss Drop'},
+  {slug:'power-shards',name:'Power Shards',cat:'Boss Drop'},
+  {slug:'aero-core',name:'Aero Core',cat:'Boss Drop'},
+  {slug:'celestial-mark',name:'Celestial Mark',cat:'Boss Drop'},
+  {slug:'crimson-heart',name:'Crimson Heart',cat:'Boss Drop'},
+  {slug:'destruction-eye',name:'Destruction Eye',cat:'Boss Drop'},
+  {slug:'infinity-core',name:'Infinity Core',cat:'Boss Drop'},
+  {slug:'kamish-dagger',name:'Kamish Dagger',cat:'Boss Drop'},
+  {slug:'cassul',name:'Cassul',cat:'Boss Drop'},
+  {slug:'silent-storm',name:'Silent Storm',cat:'Boss Drop'},
+  {slug:'adamantite',name:'Adamantite',cat:'Boss Drop'},
+  // Chests / Crates
+  {slug:'aura-crate',name:'Aura Crate',cat:'Chests'},
+  {slug:'cosmetic-crate',name:'Cosmetic Crate',cat:'Chests'},
+  {slug:'boss-rush-key',name:'Boss Rush Key',cat:'Chests'},
+  {slug:'slime-key',name:'Slime Key',cat:'Chests'},
+  {slug:'aura-crest',name:'Aura Crest',cat:'Chests'},
+  {slug:'cosmetic-crest',name:'Cosmetic Crest',cat:'Chests'},
+  // Crafting / Misc materials
+  {slug:'void-seeds',name:'Void Seeds',cat:'Crafting'},
+  {slug:'shadow-essence',name:'Shadow Essence',cat:'Crafting'},
+  {slug:'umbral-capsule',name:'Umbral Capsule',cat:'Crafting'},
+  {slug:'magic-shard',name:'Magic Shard',cat:'Crafting'},
+  {slug:'shadow-remnant',name:'Shadow Remnant',cat:'Crafting'},
+  {slug:'hogyoku-fragment',name:'Hogyoku Fragment',cat:'Crafting'},
+  {slug:'illusion-prism',name:'Illusion Prism',cat:'Crafting'},
+  {slug:'mirage-pendant',name:'Mirage Pendant',cat:'Crafting'},
+  {slug:'divinity-essence',name:'Divinity Essence',cat:'Crafting'},
+  {slug:'chrysalis-sigil',name:'Chrysalis Sigil',cat:'Crafting'},
+  {slug:'sage-pulse',name:'Sage Pulse',cat:'Crafting'},
+  {slug:'tempest-seal',name:'Tempest Seal',cat:'Crafting'},
+  {slug:'crescent-shard',name:'Crescent Shard',cat:'Crafting'},
+  {slug:'demon-remnant',name:'Demon Remnant',cat:'Crafting'},
+  {slug:'soul-fragment',name:'Soul Fragment',cat:'Crafting'},
+  {slug:'spiritual-core',name:'Spiritual Core',cat:'Crafting'},
+  {slug:'transmutation-shard',name:'Transmutation Shard',cat:'Crafting'},
+  // Sets
+  {slug:'ragna-set',name:'Ragna Set',cat:'Sets'},
+  {slug:'madoka-set',name:'Madoka Set',cat:'Sets'},
+  {slug:'esdeath-full-set',name:'Esdeath (Full Set)',cat:'Sets'},
+  {slug:'saber-v2-full-set',name:'Saber v2 (Full Set)',cat:'Sets'},
+  {slug:'kokushibo-full-set',name:'Kokushibo (Full Set)',cat:'Sets'},
+  {slug:'madara-full-set',name:'Madara (Full Set)',cat:'Sets'},
+  {slug:'saber-v2-mastery-set',name:'Saber v2 (Mastery Set)',cat:'Sets'},
+  {slug:'aizen-v2-full-set',name:'Aizen v2 (Full Set)',cat:'Sets'},
+  {slug:'esdeath-mastery-set',name:'Esdeath (Mastery Set)',cat:'Sets'},
+  {slug:'kokushibo-mastery-set',name:'Kokushibo (Mastery Set)',cat:'Sets'},
+  {slug:'madara-mastery-set',name:'Madara (Mastery Set)',cat:'Sets'},
+  {slug:'gilgamesh-full-set',name:'Gilgamesh (Full Set)',cat:'Sets'},
+  // Ascensions
+  {slug:'ascension-2',name:'Ascension 2',cat:'Ascensions'},
+  {slug:'ascension-3',name:'Ascension 3',cat:'Ascensions'},
+  {slug:'ascension-4',name:'Ascension 4',cat:'Ascensions'},
+  {slug:'ascension-5',name:'Ascension 5',cat:'Ascensions'},
+  {slug:'ascension-6',name:'Ascension 6',cat:'Ascensions'},
+  {slug:'ascension-7',name:'Ascension 7',cat:'Ascensions'},
+  {slug:'ascension-8',name:'Ascension 8',cat:'Ascensions'},
+  {slug:'ascension-9',name:'Ascension 9',cat:'Ascensions'},
+  {slug:'ascension-10',name:'Ascension 10',cat:'Ascensions'},
+  // Game Pass
+  {slug:'2x-drop',name:'2x Drop',cat:'Game Pass'},
+  {slug:'2x-luck',name:'2x Luck',cat:'Game Pass'},
+  {slug:'2x-gems',name:'2x Gems',cat:'Game Pass'},
+  {slug:'2x-exp',name:'2x Exp',cat:'Game Pass'},
+  {slug:'2x-money',name:'2x Money',cat:'Game Pass'},
+];
+
+// Deduplicate by slug
+const ITEM_MAP = {};
+ALL_ITEMS.forEach(i => { if (!ITEM_MAP[i.slug]) ITEM_MAP[i.slug] = i; });
+const ITEMS_UNIQUE = Object.values(ITEM_MAP);
+
+// CRR cache: {slug -> {crr, demand, stability, obtainable, ts}}
+let crrCache = JSON.parse(localStorage.getItem('sp_crr_cache') || '{}');
+function saveCRRCache() { try { localStorage.setItem('sp_crr_cache', JSON.stringify(crrCache)); } catch{} }
+
+// ══════════════════════════════════════
+// CLAUDE API — fetch CRR for one item
+// ══════════════════════════════════════
+async function fetchOneCRR(slug) {
+  const url = `https://sailor-piece.vaultedvaluesx.com/sailor-piece/items/${slug}`;
+  const prompt = `Visit this exact URL: ${url}
+Read the page and extract the item data. Respond ONLY with valid JSON, no markdown:
+{"crr":"340","demand":"Moderate 1","stability":"Unstable","obtainable":true}
+If value looks like "1.65M" write it as-is. If page not found respond: {"error":"not found"}`;
+
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({
+      model:'claude-sonnet-4-20250514',
+      max_tokens:150,
+      tools:[{type:'web_search_20250305',name:'web_search'}],
+      messages:[{role:'user',content:prompt}]
+    })
+  });
+  const data = await res.json();
+  const text = (data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('');
+  const m = text.match(/\{[^{}]*\}/);
+  if (!m) throw new Error('no json');
+  const parsed = JSON.parse(m[0]);
+  if (parsed.error) return null;
+  return parsed;
+}
+
+// ══════════════════════════════════════
+// VALUE LIST PAGE
+// ══════════════════════════════════════
+let vlFetching = false;
+let vlAutoInterval = null;
+let vlAbort = false;
+
+function renderVLGrid() {
+  const q = document.getElementById('vlSearch').value.toLowerCase();
+  const cat = document.getElementById('vlCat').value;
+  let items = ITEMS_UNIQUE.filter(i =>
+    (!cat || i.cat === cat) &&
+    (!q || i.name.toLowerCase().includes(q) || i.slug.includes(q))
+  );
+  const grid = document.getElementById('vl-grid');
+  if (!items.length) { grid.innerHTML = `<div class="vl-empty-batch">Tidak ada item</div>`; return; }
+  grid.innerHTML = items.map(item => {
+    const c = crrCache[item.slug];
+    let crrHtml, demandHtml;
+    if (!c) {
+      crrHtml = `<div class="vl-card-crr" style="color:var(--muted);font-size:10px">—</div>`;
+      demandHtml = '';
+    } else if (c === 'loading') {
+      crrHtml = `<div class="vl-card-crr loading">...</div>`;
+      demandHtml = '';
+    } else if (c === 'error') {
+      crrHtml = `<div class="vl-card-crr err">ERR</div>`;
+      demandHtml = '';
+    } else {
+      crrHtml = `<div class="vl-card-crr">${c.crr}</div>`;
+      demandHtml = `<div class="vl-card-demand">${c.demand||''}</div>`;
+    }
+    return `<div class="vl-card">
+      <div class="vl-card-img">📦</div>
+      <div class="vl-card-info">
+        <div class="vl-card-name">${item.name}</div>
+        <div class="vl-card-cat">${item.cat}</div>
+      </div>
+      <div class="vl-card-right">${crrHtml}${demandHtml}</div>
+    </div>`;
+  }).join('');
+}
+
+function filterVL() { renderVLGrid(); }
+
+async function startVLFetch() {
+  if (vlFetching) { vlAbort=true; return; }
+  vlFetching = true; vlAbort = false;
+  const btn = document.getElementById('vl-refresh-btn');
+  btn.textContent = '⏹ Stop';
+  btn.style.background = 'var(--danger)';
+
+  const total = ITEMS_UNIQUE.length;
+  let done = 0;
+
+  for (const item of ITEMS_UNIQUE) {
+    if (vlAbort) break;
+    crrCache[item.slug] = 'loading';
+    renderVLGrid();
+    setVLStatus(`Fetching ${done+1}/${total}: ${item.name}`, 'loading');
+    setVLProgress((done/total)*100);
+    try {
+      const r = await fetchOneCRR(item.slug);
+      crrCache[item.slug] = r || 'error';
+    } catch {
+      crrCache[item.slug] = 'error';
+    }
+    done++;
+    saveCRRCache();
+    renderVLGrid();
+    updateLootCRRTags(); // also update loot page
+    updateShopCRR();
+    if (!vlAbort && done < total) await sleep(500);
+  }
+
+  vlFetching = false;
+  btn.textContent = '⟳ Fetch All Values';
+  btn.style.background = '';
+  setVLProgress(100);
+  setVLStatus(`✓ ${done} item di-fetch`, 'ok');
+  document.getElementById('vl-update-time').textContent = new Date().toLocaleTimeString('id-ID');
+  saveCRRCache();
+}
+
+function setVLStatus(msg, type) {
+  const el = document.getElementById('vl-status-txt');
+  el.textContent = msg;
+  el.style.color = type==='loading'?'var(--gold)':type==='ok'?'var(--success)':'var(--muted)';
+}
+
+function setVLProgress(pct) {
+  document.getElementById('vl-progress-bar').style.width = Math.min(100,pct)+'%';
+}
+
+function toggleVLAuto() {
+  const toggle = document.getElementById('vl-auto-toggle');
+  if (vlAutoInterval) {
+    clearInterval(vlAutoInterval);
+    vlAutoInterval = null;
+    toggle.classList.remove('on');
+  } else {
+    toggle.classList.add('on');
+    vlAutoInterval = setInterval(startVLFetch, 10*60*1000);
+    setVLStatus('Auto-refresh aktif (10 menit)', 'ok');
+  }
+}
+
+// ══════════════════════════════════════
+// LOOT PAGE — CRR tags
+// ══════════════════════════════════════
+let lootAutoInterval = null;
+
+async function fetchLootCRR() {
+  const lootNames = Object.keys(lootData);
+  if (!lootNames.length) { showToast('Belum ada loot data'); return; }
+  const btn = document.getElementById('loot-crr-btn');
+  btn.disabled = true;
+  let done = 0;
+  for (const name of lootNames) {
+    const slug = nameToSlug(name);
+    if (!slug) { done++; continue; }
+    setLootCRRStatus(`Fetching ${done+1}/${lootNames.length}: ${name}`,'loading');
+    if (!crrCache[slug] || crrCache[slug]==='error') {
+      crrCache[slug] = 'loading';
+      try {
+        const r = await fetchOneCRR(slug);
+        crrCache[slug] = r || 'error';
+      } catch { crrCache[slug]='error'; }
+      saveCRRCache();
+    }
+    done++;
+    updateLootCRRTags();
+    if (done < lootNames.length) await sleep(400);
+  }
+  btn.disabled = false;
+  setLootCRRStatus(`✓ Updated ${new Date().toLocaleTimeString('id-ID')}`, 'ok');
+}
+
+function setLootCRRStatus(msg, type) {
+  const el = document.getElementById('loot-crr-status');
+  el.textContent = msg;
+  el.style.color = type==='loading'?'var(--gold)':type==='ok'?'var(--success)':'var(--muted)';
+}
+
+function toggleLootAuto() {
+  const toggle = document.getElementById('loot-auto-toggle');
+  if (lootAutoInterval) {
+    clearInterval(lootAutoInterval);
+    lootAutoInterval = null;
+    toggle.classList.remove('on');
+    setLootCRRStatus('Auto off','');
+  } else {
+    toggle.classList.add('on');
+    fetchLootCRR();
+    lootAutoInterval = setInterval(fetchLootCRR, 5*60*1000);
+    setLootCRRStatus('Auto aktif (5 menit)','ok');
+  }
+}
+
+// Convert display name to slug
+function nameToSlug(name) {
+  // Try to find in our item list first
+  const found = ITEMS_UNIQUE.find(i => i.name.toLowerCase() === name.toLowerCase());
+  if (found) return found.slug;
+  // Fallback: convert to slug format
+  return name.toLowerCase().replace(/[()]/g,'').replace(/\s+/g,'-').replace(/[^a-z0-9-]/g,'');
+}
+
+function updateLootCRRTags() {
+  // Update CRR tags in loot cards that are currently rendered
+  document.querySelectorAll('.icrr').forEach(el => {
+    const slug = el.dataset.slug;
+    if (!slug) return;
+    const c = crrCache[slug];
+    const valEl = el.querySelector('.icrr-val');
+    if (!valEl) return;
+    if (!c) { valEl.className='icrr-val'; valEl.textContent='—'; }
+    else if (c==='loading') { valEl.className='icrr-val loading'; valEl.textContent='...'; }
+    else if (c==='error') { valEl.className='icrr-val err'; valEl.textContent='?'; }
+    else { valEl.className='icrr-val'; valEl.textContent=c.crr+' CRR'; }
+  });
+}
+
+// ══════════════════════════════════════
+// CRAFT DATABASE
+// ══════════════════════════════════════
+const CRAFTS = [
+  {id:'ichigo',name:'Ichigo Sword',type:'sword',materials:[{name:'Soul Flame',need:1},{name:'Spiritual Core',need:3},{name:'Soul Fragment',need:5}],extras:[{name:'Money',val:'350.000'},{name:'Gems',val:'600'},{name:'Boss Keys',val:'5'}]},
+  {id:'aizen',name:'Manipulator (Aizen)',type:'sword',materials:[{name:'Hogyoku Fragment',need:1},{name:'Reiatsu Core',need:3},{name:'Illusion Prism',need:6},{name:'Mirage Pendant',need:10}],extras:[]},
+  {id:'true_aizen',name:'True Aizen (Aizen V2)',type:'sword',materials:[{name:'Evolution Fragment',need:5},{name:'Fusion Ring',need:15},{name:'Transcendent Core',need:10},{name:'Divinity Essence',need:8}],extras:[{name:'Gems',val:'35.000'},{name:'Chrysalis Sigil',val:'75'},{name:'Aizen Sword',val:'(harus punya)'}]},
+  {id:'shadow',name:'Shadow Sword (Cid V1)',type:'sword',materials:[{name:'Atomic Core',need:1},{name:'Void Seeds',need:8},{name:'Shadow Essence',need:4},{name:'Umbral Capsule',need:20}],extras:[{name:'Gems',val:'15.000'},{name:'Money',val:'10.000.000'},{name:'Race',val:'Shadowborn'}]},
+  {id:'atomic',name:'Atomic Sword (Cid V2)',type:'sword',materials:[{name:'Atomic Omen',need:1},{name:'Eminence Essence',need:3},{name:'Shadow Remnant',need:9},{name:'Magic Shard',need:16},{name:'Abyss Sigil',need:80}],extras:[{name:'Gems',val:'45.000'},{name:'Title',val:'Eminence Incarnate'},{name:'Shadow Sword',val:'(harus punya)'}]},
+  {id:'rimuru',name:'Rimuru Sword',type:'sword',materials:[{name:'Sage Pulse',need:10},{name:'Tempest Seal',need:5},{name:'Slime Remnant',need:3},{name:'Slime Core',need:1}],extras:[{name:'Title',val:'Demon Lord'},{name:'Slime Key',val:'(buat spawn boss)'}]},
+  {id:'moon_slayer',name:'Moon Slayer',type:'melee',materials:[{name:'Moon Crest',need:1},{name:'Crescent Shard',need:4},{name:'Lunar Essence',need:9},{name:'Demon Remnant',need:16},{name:'Upper Seal',need:25}],extras:[{name:'Gems',val:'37.500'},{name:'Title',val:'Six-Eyed Demon'}]},
+  {id:'strongest_shinobi',name:'Strongest Shinobi',type:'melee',materials:[{name:'Power Remnant',need:15},{name:'Battle Sigil',need:8},{name:'Eternal Core',need:3},{name:'Path Fragment',need:1}],extras:[{name:'Gems',val:'40.000'},{name:'Title',val:'Battlefield Warlord'}]},
+  {id:'true_aizen_f',name:'True Aizen — F Move',type:'fmove',materials:[{name:'Transmutation Shard',need:5}],extras:[{name:'Clan',val:'Espada'},{name:'Kill True Aizen Boss',val:'15x Hard/Extreme'}]},
+  {id:'moon_slayer_f',name:'Moon Slayer — F Move',type:'fmove',materials:[{name:'Moon Crest',need:2},{name:'Crescent Shard',need:10},{name:'Upper Seal',need:85}],extras:[{name:'Clan',val:'Upper'},{name:'Moon Slayer',val:'(harus punya)'}]},
+  {id:'atomic_f',name:'Atomic Sword — F Move',type:'fmove',materials:[{name:'Abyss Sigil',need:60}],extras:[{name:'Clan',val:'Eminence'},{name:'Kill Atomic Boss',val:'20x Hard/Extreme'},{name:'Infinite Tower',val:'Floor 51 x5'}]},
+  {id:'shadow_f',name:'Shadow Sword — F Move',type:'fmove',materials:[],extras:[{name:'Clear Cid Dungeon Easy',val:'10x'},{name:'Clear Cid Dungeon Medium',val:'10x'},{name:'Clear Cid Dungeon Hard',val:'10x'}]},
+  {id:'aizen_mastery',name:'Aizen Mastery (+30% DMG)',type:'fmove',materials:[],extras:[{name:'Kill 500 enemies w/ Armament Haki',val:''},{name:'Dodge 500 attacks w/ Observation Haki',val:''},{name:'Kill 50 bosses',val:''},{name:'Kill Aizen boss',val:'20x'}]},
+  {id:'strongest_shinobi_f',name:'Strongest Shinobi — F Move',type:'fmove',materials:[{name:'Eternal Core',need:5},{name:'Battle Sigil',need:10}],extras:[{name:'Race',val:'Warlord (harus equipped)'}]},
+];
+
+// ══════════════════════════════════════
+// SHOP DATA
+// ══════════════════════════════════════
+let SHOP_ITEMS = JSON.parse(localStorage.getItem('sp_shop_items2') || 'null') || [
+  {id:'dark-ring',       name:'Dark Ring',           slug:'Dark Ring',           price:60,  inv:0, stock:true,  selected:true},
+  {id:'upper-seal',      name:'Upper Seal',          slug:'Upper Seal',          price:1,   inv:0, stock:true,  selected:true},
+  {id:'dark-grail',      name:'Dark Grail',          slug:'Dark Grail',          price:1,   inv:0, stock:true,  selected:true},
+  {id:'path-fragment',   name:'Path Fragment',       slug:'Path Fragment',       price:250, inv:0, stock:true,  selected:true},
+  {id:'blood-ring',      name:'Blood Ring',          slug:'Blood Ring',          price:200, inv:0, stock:true,  selected:true},
+  {id:'battle-sigil',    name:'Battle Sigil',        slug:'Battle Sigil',        price:70,  inv:0, stock:true,  selected:true},
+  {id:'slime-core',      name:'Slime Core',          slug:'Slime Core',          price:120, inv:0, stock:false, selected:false},
+  {id:'reiatsu-core',    name:'Reiatsu Core',        slug:'Reiatsu Core',        price:75,  inv:0, stock:true,  selected:true},
+  {id:'curse-flesh',     name:'Curse Flesh',         slug:'Curse Flesh',         price:100, inv:0, stock:true,  selected:true},
+  {id:'infinity-essence',name:'Infinity Essence',    slug:'Infinity Essence',    price:170, inv:0, stock:true,  selected:true},
+  {id:'transmutation',   name:'Transmutation Shard', slug:'Transmutation Shard', price:50,  inv:0, stock:true,  selected:true},
+  {id:'soul-flame',      name:'Soul Flame',          slug:'Soul Flame',          price:150, inv:0, stock:true,  selected:true},
+  {id:'azure-heart',     name:'Azure Heart',         slug:'Azure Heart',         price:250, inv:0, stock:true,  selected:true},
+  {id:'frost-relic',     name:'Frost Relic',         slug:'Frost Relic',         price:2,   inv:0, stock:true,  selected:true},
+  {id:'eternal-core',    name:'Eternal Core',        slug:'Eternal Core',        price:40,  inv:0, stock:true,  selected:true},
+  // Extra items from value list
+  {id:'aura-crate',      name:'Aura Crate',          slug:'Aura Crate',          price:475, inv:0, stock:false, selected:false},
+  {id:'corrupted-crown', name:'Corrupted Crown',     slug:'Corrupted Crown',     price:230, inv:0, stock:false, selected:false},
+  {id:'evolution-fragment',name:'Evolution Fragment',slug:'Evolution Fragment',  price:230, inv:0, stock:false, selected:false},
+  {id:'moon-crest',      name:'Moon Crest',          slug:'Moon Crest',          price:100, inv:0, stock:false, selected:false},
+  {id:'atomic-core',     name:'Atomic Core',         slug:'Atomic Core',         price:150, inv:0, stock:false, selected:false},
+  {id:'atomic-omen',     name:'Atomic Omen',         slug:'Atomic Omen',         price:80,  inv:0, stock:false, selected:false},
+  {id:'slime-remnant',   name:'Slime Remnant',       slug:'Slime Remnant',       price:5,   inv:0, stock:false, selected:false},
+  {id:'fusion-ring',     name:'Fusion Ring',         slug:'Fusion Ring',         price:10,  inv:0, stock:false, selected:false},
+  {id:'lunar-essence',   name:'Lunar Essence',       slug:'Lunar Essence',       price:10,  inv:0, stock:false, selected:false},
+  {id:'shadow-heart',    name:'Shadow Heart',        slug:'Shadow Heart',        price:40,  inv:0, stock:false, selected:false},
+  {id:'phantasm-core',   name:'Phantasm Core',       slug:'Phantasm Core',       price:200, inv:0, stock:false, selected:false},
+  {id:'ice-core',        name:'Ice Core',            slug:'Ice Core',            price:100, inv:0, stock:false, selected:false},
+  {id:'eminence-essence',name:'Eminence Essence',    slug:'Eminence Essence',    price:80,  inv:0, stock:false, selected:false},
+  {id:'transcendent-core',name:'Transcendent Core',  slug:'Transcendent Core',   price:70,  inv:0, stock:false, selected:false},
+  {id:'abyss-sigil',     name:'Abyss Sigil',         slug:'Abyss Sigil',         price:4,   inv:0, stock:false, selected:false},
+  {id:'passive-shard',   name:'Passive Shard',       slug:'Passive Shard',       price:1,   inv:0, stock:false, selected:false},
+  {id:'power-remnant',   name:'Power Remnant',       slug:'Power Remnant',       price:2,   inv:0, stock:false, selected:false},
+  {id:'soul-amulet',     name:'Soul Amulet',         slug:'Soul Amulet',         price:20,  inv:0, stock:false, selected:false},
+  {id:'six-eyes',        name:'Six Eyes',            slug:'Six Eyes',            price:5,   inv:0, stock:false, selected:false},
+  {id:'corruption-core', name:'Corruption Core',     slug:'Corruption Core',     price:70,  inv:0, stock:false, selected:false},
+  {id:'dismantle-fang',  name:'Dismantle Fang',      slug:'Dismantle Fang',      price:70,  inv:0, stock:false, selected:false},
+];
+
+function saveShop() { localStorage.setItem('sp_shop_items2', JSON.stringify(SHOP_ITEMS)); }
+
+// ══════════════════════════════════════
+// LOOT STATE
+// ══════════════════════════════════════
+let lootData = {};
+let sort = 'qty';
+let iv = null;
+let cd = 10;
+
+// Init craft select
+const sel = document.getElementById('craft-select');
+const groups = {sword:'⚔️ Swords',melee:'🥊 Melee Specs',fmove:'✨ F Moves & Mastery'};
+const grouped = {};
+CRAFTS.forEach(c=>{if(!grouped[c.type])grouped[c.type]=[];grouped[c.type].push(c);});
+Object.entries(groups).forEach(([type,label])=>{
+  if(!grouped[type])return;
+  const og=document.createElement('optgroup');og.label=label;
+  grouped[type].forEach(c=>{const o=document.createElement('option');o.value=c.id;o.textContent=c.name;og.appendChild(o);});
+  sel.appendChild(og);
+});
+
+startPoll();
+renderVLGrid();
+updateShopSummary();
+updateTradeText();
+
+function startPoll(){
+  if(iv)clearInterval(iv);
+  fetchData();cd=10;
+  iv=setInterval(()=>{cd--;document.getElementById('cd').textContent=cd+'s';if(cd<=0){fetchData();cd=10;}},1000);
+}
+
+async function fetchData(){
+  document.getElementById('spin').style.display='inline-block';
+  try{
+    const r=await fetch(FB_URL,{cache:'no-store'});if(!r.ok)throw 0;
+    const d=await r.json();
+    const prev=Object.keys(lootData);
+    lootData=d||{};
+    const nw=Object.keys(lootData).filter(k=>!prev.includes(k));
+    setConn(true);renderLoot(nw);updateStats();renderCraft();syncShopFromLoot();
+    if(document.getElementById('page-asc').classList.contains('active'))renderAscCard();
+    const t=new Date().toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+    document.getElementById('lu').textContent='Update: '+t;
+  }catch{setConn(false);}
+  document.getElementById('spin').style.display='none';
+}
+
+function setConn(ok){
+  document.getElementById('dot').className='dot '+(ok?'live':'err');
+  const txt=document.getElementById('stxt');txt.textContent=ok?'Live':'Gagal konek';
+  txt.style.color=ok?'var(--success)':'var(--danger)';
+}
+
+function updateStats(){
+  const items=Object.values(lootData);
+  const tot=items.reduce((s,i)=>s+(i.total_quantity||0),0);
+  const rare=items.filter(i=>['legendary','mythical','epic','secret'].includes((i.rarity||'').toLowerCase())).length;
+  document.getElementById('s1').textContent=items.length;
+  document.getElementById('s2').textContent=tot>999?(tot/1000).toFixed(1)+'k':tot;
+  document.getElementById('s3').textContent=rare;
+}
+
+function renderLoot(nw=[]){
+  const grid=document.getElementById('grid');
+  const q=document.getElementById('q').value.toLowerCase();
+  let items=Object.entries(lootData);
+  if(q)items=items.filter(([k])=>k.toLowerCase().includes(q));
+  if(sort==='qty')items.sort((a,b)=>(b[1].total_quantity||0)-(a[1].total_quantity||0));
+  else items.sort((a,b)=>a[0].localeCompare(b[0]));
+  if(!items.length){grid.innerHTML=`<div class="empty"><div class="ico">${q?'🔍':'📦'}</div><p>${q?'Tidak ditemukan':'Belum ada item terkumpul'}</p></div>`;return;}
+  grid.innerHTML='';
+  items.forEach(([name,item])=>{
+    const isNew=nw.includes(name);
+    const rar=(item.rarity||'').toLowerCase();
+    const img=item.image_url?`<img src="${item.image_url}" alt="" onerror="this.parentElement.innerHTML='📦'">`:'📦';
+    const slug=nameToSlug(name);
+    const c=crrCache[slug];
+    let crrText,crrClass;
+    if(!c){crrText='—';crrClass='';}
+    else if(c==='loading'){crrText='...';crrClass='loading';}
+    else if(c==='error'){crrText='?';crrClass='err';}
+    else{crrText=c.crr+' CRR';crrClass='';}
+    const div=document.createElement('div');
+    div.className='lc'+(isNew?' nw':'');
+    div.innerHTML=`
+      <div class="iw">${img}</div>
+      <div class="ii">
+        <div class="in">${name}</div>
+        <div class="is r-${rar||'common'}">${item.rarity||'Unknown'}</div>
+        <div class="icrr" data-slug="${slug}">
+          <span style="color:var(--muted);font-size:10px">CRR:</span>
+          <span class="icrr-val ${crrClass}">${crrText}</span>
+        </div>
+      </div>
+      <div class="iq">
+        <div class="qt">+${item.total_quantity||0}</div>
+        <div class="qi">inv: ${item.inventory_quantity||0}</div>
+      </div>`;
+    grid.appendChild(div);
+  });
+}
+
+function getLootQty(matName){
+  const key=Object.keys(lootData).find(k=>k.toLowerCase()===matName.toLowerCase());
+  if(key)return lootData[key].inventory_quantity||lootData[key].total_quantity||0;
+  return 0;
+}
+
+function renderCraft(){
+  const id=document.getElementById('craft-select').value;
+  const result=document.getElementById('craft-result');
+  if(!id){result.innerHTML=`<div class="empty"><div class="ico">⚔️</div><p>Pilih item di atas</p></div>`;return;}
+  const craft=CRAFTS.find(c=>c.id===id);if(!craft)return;
+  const typeLabels={sword:'Sword',melee:'Melee Spec',fmove:'F Move / Mastery'};
+  const typeBadge={sword:'badge-sword',melee:'badge-melee',fmove:'badge-fmove'};
+  let canCraft=Infinity;
+  if(craft.materials.length>0){craft.materials.forEach(m=>{const have=getLootQty(m.name);const times=Math.floor(have/m.need);if(times<canCraft)canCraft=times;});}else canCraft=0;
+  const canClass=canCraft>=1?'ok':canCraft===0&&craft.materials.length===0?'part':'no';
+  const canText=craft.materials.length===0?'Quest Based':canCraft+'x';
+  let matsHtml='';
+  craft.materials.forEach(m=>{const have=getLootQty(m.name);const done=have>=m.need;matsHtml+=`<div class="mat-row ${done?'done':'miss'}"><div><div class="mat-name">${m.name}</div><div class="mat-sub">Dibutuhkan: ${m.need}</div></div><div class="mat-qty"><div class="mat-have ${done?'ok':'no'}">${have}/${m.need}</div><div class="mat-need">${done?'✓ Cukup':'Kurang '+Math.max(0,m.need-have)}</div></div></div>`;});
+  let extrasHtml='';
+  if(craft.extras.length>0){extrasHtml=`<div class="non-trackable"><div class="non-trackable-title">⚠️ Syarat Lain</div>${craft.extras.map(e=>`<div class="non-trackable-item"><span>${e.name}</span><span style="color:var(--muted)">${e.val}</span></div>`).join('')}</div>`;}
+  result.innerHTML=`<div class="craft-card"><div class="craft-title">${craft.name} <span class="badge ${typeBadge[craft.type]}">${typeLabels[craft.type]}</span></div><div class="craft-type">Material dari Firebase loot</div><div class="craft-can"><div><div class="craft-can-label">Bisa di-craft</div></div><div class="craft-can-val ${canClass}">${canText}</div></div>${craft.materials.length>0?`<div class="sec">Material</div><div class="mat-list">${matsHtml}</div>`:`<div style="font-size:12px;color:var(--muted);padding:8px 0">Quest/sistem khusus</div>`}${extrasHtml}</div>`;
+}
+
+function toggleSort(){sort=sort==='qty'?'name':'qty';const btn=document.getElementById('sb');btn.textContent=sort==='qty'?'QTY ↓':'A-Z ↑';btn.className='sbtn'+(sort==='name'?' on':'');renderLoot();}
+
+async function doReset(){
+  if(!confirm('Reset semua loot?'))return;
+  try{await fetch(FB_URL,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({})});lootData={};renderLoot();updateStats();renderCraft();showToast('✓ Loot direset');}catch{showToast('Gagal reset');}
+}
+
+function switchTab(tab){
+  document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',['loot','craft','values','shop','asc'][i]===tab));
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.getElementById('page-'+tab).classList.add('active');
+  if(tab==='values')renderVLGrid();
+  if(tab==='shop')renderShop();
+  if(tab==='asc')initAscPage();
+}
+
+function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2200);}
+function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
+
+// ══════════════════════════════════════
+// ASCENSION DATA (1-10)
+// Source: beebom.com/sailor-piece-ascension-guide
+// ══════════════════════════════════════
+const ASCENSIONS = [
+  {
+    level:1,
+    reward:'+10% Money · +10% Gems · +2% CDR · +5% Luck',
+    tasks:[
+      {label:'Level',val:'2,500'},
+      {label:'Kill NPCs',val:'125'},
+      {label:'Kill Bosses',val:'10'},
+      {label:'Deal Damage',val:'10M'},
+    ],
+    materials:[]
+  },
+  {
+    level:2,
+    reward:'+10% Money · +10% Gems · +2% CDR · +5% Luck',
+    tasks:[
+      {label:'Level',val:'5,000'},
+      {label:'Kill NPCs',val:'400'},
+      {label:'Kill Bosses',val:'25'},
+      {label:'Deal Damage',val:'50M'},
+      {label:'Use Abilities',val:'150x'},
+    ],
+    materials:[
+      {name:'Void Fragment',need:5},
+      {name:'Limitless Ring',need:2},
+    ]
+  },
+  {
+    level:3,
+    reward:'+10% Money · +10% Gems · +2% CDR · +5% Luck',
+    tasks:[
+      {label:'Level',val:'6,000'},
+      {label:'Kill NPCs',val:'500'},
+      {label:'Kill Bosses',val:'50'},
+      {label:'Use Abilities',val:'500x'},
+      {label:'Deal Damage',val:'250M'},
+      {label:'Shadow Dungeon Easy',val:'10x Clear'},
+    ],
+    materials:[
+      {name:'Dismantle Fang',need:7},
+      {name:'Dark Ring',need:5},
+    ]
+  },
+  {
+    level:4,
+    reward:'+10% Money · +10% Gems · +2% CDR · +5% Luck',
+    tasks:[
+      {label:'Level',val:'7,000'},
+      {label:'Kill NPCs',val:'625'},
+      {label:'Kill Bosses',val:'50'},
+      {label:'Use Abilities',val:'500x'},
+      {label:'Deal Damage',val:'1B'},
+      {label:'Shadow Dungeon Medium',val:'10x Clear'},
+    ],
+    materials:[
+      {name:'Reiatsu Core',need:4},
+      {name:'Blood Ring',need:1},
+    ]
+  },
+  {
+    level:5,
+    reward:'+10% Money · +10% Gems · +2% CDR · +5% Luck',
+    tasks:[
+      {label:'Level',val:'8,000'},
+      {label:'Kill NPCs',val:'750'},
+      {label:'Kill Bosses',val:'150'},
+      {label:'Use Abilities',val:'750x'},
+      {label:'Deal Damage',val:'5B'},
+      {label:'Shadow Dungeon Hard',val:'10x Clear'},
+    ],
+    materials:[
+      {name:'Hogyoku Fragment',need:2},
+      {name:'Atomic Core',need:2},
+    ]
+  },
+  {
+    level:6,
+    reward:'+10% Money · +10% Gems · +5% Luck',
+    tasks:[
+      {label:'Level',val:'8,500'},
+      {label:'Kill NPCs',val:'850'},
+      {label:'Kill Bosses',val:'250'},
+      {label:'Use Abilities',val:'850x'},
+      {label:'Deal Damage',val:'20B'},
+      {label:'Rune Dungeon Medium',val:'10x Clear'},
+      {label:'Shadow Dungeon Medium',val:'5x Clear'},
+    ],
+    materials:[
+      {name:'Blood Ring',need:3},
+      {name:'Soul Flame',need:3},
+    ]
+  },
+  {
+    level:7,
+    reward:'+10% Money · +10% Gems · +5% Luck',
+    tasks:[
+      {label:'Level',val:'9,000'},
+      {label:'Kill NPCs',val:'1,000'},
+      {label:'Kill Bosses',val:'350'},
+      {label:'Use Abilities',val:'1,000x'},
+      {label:'Deal Damage',val:'75B'},
+      {label:'Rune Dungeon Hard',val:'10x Clear'},
+      {label:'Shadow Dungeon Hard',val:'10x Clear'},
+    ],
+    materials:[
+      {name:'Curse Flesh',need:2},
+      {name:'Infinity Essence',need:2},
+    ]
+  },
+  {
+    level:8,
+    reward:'+10% Money · +10% Gems · +5% Luck',
+    tasks:[
+      {label:'Level',val:'10,000'},
+      {label:'Kill NPCs',val:'1,250'},
+      {label:'Kill Bosses',val:'500'},
+      {label:'Use Abilities',val:'1,200x'},
+      {label:'Deal Damage',val:'350B'},
+      {label:'Rune Dungeon Hard',val:'10x Clear'},
+      {label:'Shadow Dungeon Hard',val:'10x Clear'},
+    ],
+    materials:[
+      {name:'Phantasm Core',need:2},
+      {name:'Slime Core',need:3},
+    ]
+  },
+  {
+    level:9,
+    reward:'+10% Money · +10% Gems · +5% Luck',
+    tasks:[
+      {label:'Level',val:'11,500'},
+      {label:'Kill NPCs',val:'1,500'},
+      {label:'Kill Bosses',val:'700'},
+      {label:'Use Abilities',val:'1,500x'},
+      {label:'Deal Damage',val:'1,000B'},
+      {label:'Rune Dungeon Hard',val:'10x Clear'},
+      {label:'Shadow Dungeon Hard',val:'10x Clear'},
+      {label:'Boss Rush Medium+',val:'15x Clear'},
+    ],
+    materials:[
+      {name:'Azure Heart',need:2},
+      {name:'Evolution Fragment',need:2},
+    ]
+  },
+  {
+    level:10,
+    reward:'+10% Money · +10% Gems · +2% CDR · +5% Luck',
+    tasks:[
+      {label:'Level',val:'13,000'},
+      {label:'Kill NPCs',val:'2,000'},
+      {label:'Kill Bosses',val:'1,000'},
+      {label:'Use Abilities',val:'2,000x'},
+      {label:'Deal Damage',val:'7,500B'},
+      {label:'Rune Dungeon Hard',val:'10x Clear'},
+      {label:'Shadow Dungeon Hard',val:'10x Clear'},
+      {label:'Infinite Tower Floor 75+',val:'2x Clear'},
+    ],
+    materials:[
+      {name:'Path Fragment',need:2},
+      {name:'Corrupted Crown',need:3},
+    ]
+  },
+];
+
+let currentAscLevel = 1;
+
+function initAscPage(){
+  // Build level buttons
+  const wrap = document.getElementById('asc-level-btns');
+  if(wrap.children.length===0){
+    ASCENSIONS.forEach(a=>{
+      const btn=document.createElement('button');
+      btn.className='asc-lvl-btn'+(a.level===currentAscLevel?' active':'');
+      btn.textContent='Asc '+a.level;
+      btn.onclick=()=>selectAscLevel(a.level);
+      wrap.appendChild(btn);
+    });
+  }
+  renderAscCard();
+}
+
+function selectAscLevel(lvl){
+  currentAscLevel=lvl;
+  document.querySelectorAll('.asc-lvl-btn').forEach((b,i)=>{
+    b.classList.toggle('active',ASCENSIONS[i].level===lvl);
+  });
+  renderAscCard();
+}
+
+function renderAscCard(){
+  const asc=ASCENSIONS.find(a=>a.level===currentAscLevel);
+  if(!asc)return;
+  const card=document.getElementById('asc-card');
+
+  // Check materials
+  let allMatsDone=true;
+  let matsHtml='';
+  if(asc.materials.length>0){
+    asc.materials.forEach(m=>{
+      const have=getLootQty(m.name);
+      const done=have>=m.need;
+      if(!done)allMatsDone=false;
+      const slug=nameToSlug(m.name);
+      const c=crrCache[slug];
+      const crrTxt=c&&c!=='loading'&&c!=='error'?`CRR: ${c.crr}`:'';
+      matsHtml+=`<div class="asc-mat-row ${done?'done':'miss'}">
+        <div>
+          <div class="asc-mat-name">${m.name}</div>
+          ${crrTxt?`<div class="asc-mat-crr">${crrTxt}</div>`:''}
+        </div>
+        <div class="asc-mat-right">
+          <div class="asc-mat-have ${done?'ok':'no'}">${have}/${m.need}</div>
+          <div class="asc-mat-sub">${done?'✓ Cukup':'Kurang '+(m.need-have)}</div>
+        </div>
+      </div>`;
+    });
+  } else {
+    matsHtml=`<div style="font-size:12px;color:var(--muted);padding:6px 0">Tidak ada material yang dibutuhkan</div>`;
+  }
+
+  const canClass = asc.materials.length===0?'part':allMatsDone?'ok':'no';
+  const canText  = asc.materials.length===0?'Quest Only':allMatsDone?'✓ SIAP':'✗ Kurang';
+
+  const tasksHtml = asc.tasks.map(t=>`
+    <div class="asc-req-row">
+      <span class="asc-req-label">${t.label}</span>
+      <span class="asc-req-val">${t.val}</span>
+    </div>`).join('');
+
+  card.innerHTML=`
+  <div class="asc-card">
+    <div class="asc-header">
+      <div class="asc-title">ASCENSION ${asc.level}</div>
+      <div class="asc-reward">${asc.reward}</div>
+    </div>
+    <div class="asc-can">
+      <div>
+        <div style="font-size:12px;color:var(--muted)">Status Material</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px">Dari loot inventory</div>
+      </div>
+      <div class="asc-can-val ${canClass}">${canText}</div>
+    </div>
+    <div class="asc-req-wrap">
+      <div class="asc-req-title">Requirements (Quest)</div>
+      ${tasksHtml}
+    </div>
+    ${asc.materials.length>0?`<div class="asc-mat-title">Material Dibutuhkan</div>`:''}
+    ${matsHtml}
+  </div>`;
+}
+
+// ══════════════════════════════════════
+// SHOP LOGIC
+// ══════════════════════════════════════
+function syncShopFromLoot(){
+  SHOP_ITEMS.forEach(item=>{const qty=getLootQty(item.slug);if(qty>0)item.inv=qty;});
+  saveShop();
+  if(document.getElementById('page-shop').classList.contains('active'))renderShop();
+  updateShopSummary();
+}
+
+function syncAllFromInv(){syncShopFromLoot();renderShop();showToast('✓ Inv di-sync dari loot');}
+
+// ── SYNC LOOT → SHOP: tambah item baru dari loot yang belum ada di shop ──
+function syncLootToShop(){
+  const lootNames=Object.keys(lootData);
+  let added=0;
+  lootNames.forEach(name=>{
+    // Check if already in shop (by name match, case-insensitive)
+    const exists=SHOP_ITEMS.find(i=>i.slug.toLowerCase()===name.toLowerCase()||i.name.toLowerCase()===name.toLowerCase());
+    if(!exists){
+      const slug=nameToSlug(name);
+      const inv=getLootQty(name);
+      SHOP_ITEMS.push({
+        id:slug,
+        name:name,
+        slug:name,
+        price:0,
+        inv:inv,
+        stock:inv>0,
+        selected:false
+      });
+      added++;
+    } else {
+      // Update inv for existing
+      const qty=getLootQty(name);
+      if(qty>0) exists.inv=qty;
+    }
+  });
+  saveShop();
+  renderShop();
+  showToast(added>0?`✓ ${added} item baru ditambahkan dari loot`:'✓ Semua item sudah ada di shop');
+}
+
+function updateShopCRR(){
+  // Update CRR display in expanded shop cards if any
+  SHOP_ITEMS.forEach(item=>{
+    const el=document.getElementById('shopcrr-'+item.id);
+    if(!el)return;
+    const slug=item.id; // shop id matches slug
+    const c=crrCache[slug];
+    if(!c){el.className='shop-crr-live';el.textContent='—';}
+    else if(c==='loading'){el.className='shop-crr-live loading';el.textContent='...';}
+    else if(c==='error'){el.className='shop-crr-live err';el.textContent='ERR';}
+    else{el.className='shop-crr-live';el.textContent=c.crr+' CRR';}
+  });
+}
+
+function renderShop(){
+  const q=document.getElementById('shopSearch').value.toLowerCase();
+  const clearBtn=document.getElementById('shopSearchClear');
+  clearBtn.style.display=q?'block':'none';
+  const container=document.getElementById('shopItemsContainer');
+  const filtered=SHOP_ITEMS.filter(item=>!q||item.name.toLowerCase().includes(q)||item.slug.toLowerCase().includes(q));
+  if(!filtered.length){container.innerHTML=`<div class="empty"><div class="ico">🔍</div><p>Tidak ditemukan</p></div>`;}
+  else{container.innerHTML=filtered.map(item=>buildShopCard(item)).join('');}
+  updateShopSummary();updateTradeText();
+}
+
+function buildShopCard(item){
+  const total=item.price>0&&item.inv>0?item.price*item.inv:0;
+  // CRR live value
+  const c=crrCache[item.id];
+  let crrDisplay;
+  if(!c)crrDisplay='—';
+  else if(c==='loading')crrDisplay='...';
+  else if(c==='error')crrDisplay='ERR';
+  else crrDisplay=c.crr+' CRR';
+  const crrClass=!c?'':c==='loading'?'loading':c==='error'?'err':'';
+
+  return `<div class="shop-item${item.selected?' selected':''}${!item.stock?' out-of-stock':''}" id="card-${item.id}">
+    <div class="shop-item-header" onclick="toggleShopSelect('${item.id}')">
+      <div class="shop-item-check">${item.selected?'✓':''}</div>
+      <div class="shop-item-name">${item.name}</div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;color:var(--gold)">1:${item.price}</span>
+        <div class="shop-stock-dot ${item.stock?'in':'out'}"></div>
+        <span style="font-size:16px;color:var(--muted);cursor:pointer" onclick="event.stopPropagation();toggleExpand('${item.id}')" title="Edit">✏️</span>
+      </div>
+    </div>
+    <div class="shop-item-body" id="body-${item.id}">
+      <div class="shop-inputs">
+        <div class="shop-input-group">
+          <label>Harga Jual (CRR)</label>
+          <input class="shop-input" type="number" min="0" value="${item.price}" onchange="updateItemPrice('${item.id}',this.value)" oninput="updateItemPrice('${item.id}',this.value)" />
+        </div>
+        <div class="shop-input-group">
+          <label>Inv (qty)</label>
+          <input class="shop-input" type="number" min="0" value="${item.inv}" onchange="updateItemInv('${item.id}',this.value)" oninput="updateItemInv('${item.id}',this.value)" />
+        </div>
+      </div>
+      <div class="shop-calc-row">
+        <span class="shop-calc-label">Total (${item.inv} × ${item.price} CRR)</span>
+        <span class="shop-calc-val">${total>0?total.toLocaleString('id-ID')+' CRR':'—'}</span>
+      </div>
+      <div class="shop-crr-row">
+        <span class="shop-crr-label">CRR Live (VaultedValuesX)</span>
+        <span class="shop-crr-live ${crrClass}" id="shopcrr-${item.id}">${crrDisplay}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px">
+        <div class="shop-inv-sync" onclick="syncOneFromLoot('${item.id}')">⟳ Sync dari loot</div>
+        <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted);cursor:pointer">
+          <input type="checkbox" ${item.stock?'checked':''} onchange="updateItemStock('${item.id}',this.checked)" style="accent-color:var(--success)">
+          Stok ada
+        </label>
+      </div>
+    </div>
+  </div>`;
+}
+
+function toggleExpand(id){const card=document.getElementById('card-'+id);card.classList.toggle('expanded');}
+function toggleShopSelect(id){
+  const item=SHOP_ITEMS.find(i=>i.id===id);if(!item)return;
+  item.selected=!item.selected;saveShop();
+  const card=document.getElementById('card-'+id);
+  if(card){const wasExp=card.classList.contains('expanded');card.outerHTML=buildShopCard(item);if(wasExp)setTimeout(()=>{const nc=document.getElementById('card-'+id);if(nc)nc.classList.add('expanded');},0);}
+  updateShopSummary();updateTradeText();
+}
+function updateItemPrice(id,val){const item=SHOP_ITEMS.find(i=>i.id===id);if(!item)return;item.price=Math.max(0,parseInt(val)||0);saveShop();updateShopSummary();updateTradeText();const card=document.getElementById('card-'+id);if(card){const cv=card.querySelector('.shop-calc-val');const cl=card.querySelector('.shop-calc-label');const tot=item.price*item.inv;if(cv)cv.textContent=tot>0?tot.toLocaleString('id-ID')+' CRR':'—';if(cl)cl.textContent=`Total (${item.inv} × ${item.price} CRR)`;}}
+function updateItemInv(id,val){const item=SHOP_ITEMS.find(i=>i.id===id);if(!item)return;item.inv=Math.max(0,parseInt(val)||0);saveShop();updateShopSummary();updateTradeText();const card=document.getElementById('card-'+id);if(card){const cv=card.querySelector('.shop-calc-val');const cl=card.querySelector('.shop-calc-label');const tot=item.price*item.inv;if(cv)cv.textContent=tot>0?tot.toLocaleString('id-ID')+' CRR':'—';if(cl)cl.textContent=`Total (${item.inv} × ${item.price} CRR)`;}}
+function updateItemStock(id,val){const item=SHOP_ITEMS.find(i=>i.id===id);if(!item)return;item.stock=val;saveShop();updateTradeText();}
+function syncOneFromLoot(id){const item=SHOP_ITEMS.find(i=>i.id===id);if(!item)return;const qty=getLootQty(item.slug);item.inv=qty;saveShop();showToast(`✓ ${item.name}: inv = ${qty}`);renderShop();}
+function updateShopSummary(){let t=0,s=0;SHOP_ITEMS.forEach(i=>{t+=i.price*i.inv;if(i.selected)s++;});const e1=document.getElementById('shop-total-crr');if(e1)e1.textContent=t>999?(t/1000).toFixed(1)+'k':t.toLocaleString('id-ID');const e2=document.getElementById('shop-selected-count');if(e2)e2.textContent=s+' dipilih';}
+function selectAll(){SHOP_ITEMS.forEach(i=>i.selected=true);saveShop();renderShop();}
+function selectNone(){SHOP_ITEMS.forEach(i=>i.selected=false);saveShop();renderShop();}
+function clearShopSearch(){document.getElementById('shopSearch').value='';document.getElementById('shopSearchClear').style.display='none';renderShop();}
+function updateTradeText(){
+  const selected=SHOP_ITEMS.filter(i=>i.selected);
+  const box=document.getElementById('tradeTextBox');
+  const countEl=document.getElementById('tradeItemCount');
+  if(!selected.length){box.textContent='Pilih item di atas...';if(countEl)countEl.textContent='0 item';return;}
+  const inStock=selected.filter(i=>i.stock);
+  const outStock=selected.filter(i=>!i.stock);
+  let lines=[];
+  inStock.forEach(i=>lines.push(`${i.name} (1:${i.price}) 🟢`));
+  outStock.forEach(i=>lines.push(`${i.name} (1:${i.price}) 🔴`));
+  lines.push('');
+  lines.push('🔴 = No stock 🟢 = Lots of stock');
+  box.textContent=lines.join('\n');
+  if(countEl)countEl.textContent=selected.length+' item';
+}
+async function copyTradeText(){
+  const text=document.getElementById('tradeTextBox').textContent;
+  if(!text||text==='Pilih item di atas...'){showToast('Pilih item dulu!');return;}
+  try{await navigator.clipboard.writeText(text);showToast('✓ Teks berhasil di-copy!');}
+  catch{const ta=document.createElement('textarea');ta.value=text;document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);showToast('✓ Teks berhasil di-copy!');}
+}
+</script>
+</body>
+</html>
