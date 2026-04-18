@@ -511,68 +511,84 @@ let crrCache = JSON.parse(localStorage.getItem('sp_crr_cache') || '{}');
 function saveCRRCache() { try { localStorage.setItem('sp_crr_cache', JSON.stringify(crrCache)); } catch{} }
 
 // ══════════════════════════════════════
-// FETCH CRR — CORS proxy scrape (no API key needed, works on GitHub Pages)
-// Tries multiple proxies, falls back gracefully
+// FETCH CRR — CORS proxy, parse HTML langsung
+// Pattern dari HTML: "Current CRR Value\n\n340"
 // ══════════════════════════════════════
 const CORS_PROXIES = [
-  slug => `https://api.allorigins.win/get?url=${encodeURIComponent('https://sailor-piece.vaultedvaluesx.com/sailor-piece/items/'+slug)}`,
-  slug => `https://corsproxy.io/?${encodeURIComponent('https://sailor-piece.vaultedvaluesx.com/sailor-piece/items/'+slug)}`,
-  slug => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent('https://sailor-piece.vaultedvaluesx.com/sailor-piece/items/'+slug)}`,
+  s => `https://api.allorigins.win/get?url=${encodeURIComponent('https://sailor-piece.vaultedvaluesx.com/sailor-piece/items/'+s)}`,
+  s => `https://corsproxy.io/?url=${encodeURIComponent('https://sailor-piece.vaultedvaluesx.com/sailor-piece/items/'+s)}`,
+  s => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent('https://sailor-piece.vaultedvaluesx.com/sailor-piece/items/'+s)}`,
 ];
+
+function parseCRRFromHTML(html) {
+  // Primary: "Current CRR Value\n\nNUMBER" (exact pattern from real page)
+  let m = html.match(/Current CRR Value\s*\n\s*\n\s*([\d,\.KkMm]+)/);
+  if (m) return m[1].replace(/,/g,'');
+
+  // Secondary: "Current CRR Value" followed by any whitespace then number
+  m = html.match(/Current CRR Value\s+([\d,\.KkMm]+)/);
+  if (m) return m[1].replace(/,/g,'');
+
+  // Tertiary: "CRR Value: NUMBER" from trade ads section (always present)
+  // Find FIRST occurrence which is the item's own CRR
+  m = html.match(/CRR Value:\s*([\d,\.KkMm]+)/);
+  if (m) return m[1].replace(/,/g,'');
+
+  return null;
+}
+
+function parseDemandFromHTML(html) {
+  // Pattern: "Demand\n\nHigh - 6" or "Demand\n:\n   High - 6"
+  let m = html.match(/\bDemand\b[\s\S]{0,5}\n\s*\n\s*([^\n<]{2,30})/);
+  if (m) return m[1].trim();
+  m = html.match(/Demand\s*:\s*([^\n<]{2,30})/);
+  if (m) return m[1].trim();
+  return '';
+}
 
 async function fetchOneCRR(slug) {
   let html = null;
+  let lastErr = null;
 
   for (const proxyFn of CORS_PROXIES) {
     try {
-      const proxyUrl = proxyFn(slug);
-      const res = await fetch(proxyUrl, { signal: AbortSignal.timeout(8000) });
-      if (!res.ok) continue;
-      const data = await res.json().catch(()=>null);
-      // allorigins wraps in {contents:...}, corsproxy returns raw text
-      if (data && data.contents) { html = data.contents; break; }
-      const txt = await res.text().catch(()=>null);
-      if (txt && txt.includes('CRR Value')) { html = txt; break; }
-    } catch { continue; }
+      const res = await fetch(proxyFn(slug), {
+        signal: AbortSignal.timeout(9000)
+      });
+      if (!res.ok) { lastErr = 'HTTP '+res.status; continue; }
+
+      // allorigins returns JSON {contents: "...html..."}
+      // corsproxy & codetabs return raw HTML text
+      const ct = res.headers.get('content-type') || '';
+      if (ct.includes('json')) {
+        const j = await res.json();
+        html = j.contents || j.body || null;
+      } else {
+        html = await res.text();
+      }
+
+      // Validate we actually got item page HTML
+      if (!html || !html.includes('CRR Value')) {
+        html = null; lastErr = 'no CRR in response'; continue;
+      }
+      break; // success
+    } catch(e) { lastErr = e.message; continue; }
   }
 
-  if (!html) throw new Error('all proxies failed');
+  if (!html) throw new Error('all proxies failed: ' + lastErr);
 
-  // Parse CRR value from HTML
-  // Pattern: "Current CRR Value\n\n340" or "CRR Value\n:   340"
-  let crr = null;
-  // Try: "Current CRR Value" followed by number
-  let m = html.match(/Current CRR Value[\s\S]{0,50}?(\d[\d,\.KkMm]+)/);
-  if (m) crr = m[1].replace(/,/g,'');
+  const crr = parseCRRFromHTML(html);
+  if (!crr) return null; // page exists but no value (e.g. range "500K-600K" handled below)
 
-  // Try: "CRR Value\n: NUMBER"
-  if (!crr) {
-    m = html.match(/CRR Value[\s\S]{0,30}?:\s*([\d,\.KkMm]+)/);
-    if (m) crr = m[1].replace(/,/g,'');
-  }
+  // Handle range values like "500K-600K" — take midpoint or first
+  const rangeCRR = html.match(/Current CRR Value[\s\S]{0,10}([\d\.]+[KkMm]?)\s*[-–]\s*([\d\.]+[KkMm]?)/);
+  const finalCRR = rangeCRR ? rangeCRR[1]+'-'+rangeCRR[2] : crr;
 
-  // Try: plain number after "CRR" near the top of content
-  if (!crr) {
-    m = html.match(/CRR[^<]{0,20}?(\d{2,})/);
-    if (m) crr = m[1];
-  }
+  const demand = parseDemandFromHTML(html);
+  const stability = (html.match(/Stability\s*\n\s*\n\s*([^\n<]{3,20})/) || html.match(/Stability\s*:\s*([^\n<]{3,20})/) || [])[1]?.trim() || '';
+  const obtainable = /Obtainable\?[\s\S]{0,20}Yes/.test(html);
 
-  if (!crr) return null;
-
-  // Parse demand
-  let demand = '';
-  const dm = html.match(/Demand[\s\S]{0,30}?:\s*([^\n<]{3,30})/);
-  if (dm) demand = dm[1].trim().replace(/\s+/g,' ');
-
-  // Parse stability
-  let stability = '';
-  const sm = html.match(/Stability[\s\S]{0,30}?:\s*([^\n<]{3,20})/);
-  if (sm) stability = sm[1].trim();
-
-  // Parse obtainable
-  const obtainable = html.includes('Obtainable') && !html.includes('Obtainable?\n:\n   No');
-
-  return { crr, demand, stability, obtainable };
+  return { crr: finalCRR, demand, stability, obtainable };
 }
 
 // ══════════════════════════════════════
