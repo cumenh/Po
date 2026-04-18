@@ -511,32 +511,68 @@ let crrCache = JSON.parse(localStorage.getItem('sp_crr_cache') || '{}');
 function saveCRRCache() { try { localStorage.setItem('sp_crr_cache', JSON.stringify(crrCache)); } catch{} }
 
 // ══════════════════════════════════════
-// CLAUDE API — fetch CRR for one item
+// FETCH CRR — CORS proxy scrape (no API key needed, works on GitHub Pages)
+// Tries multiple proxies, falls back gracefully
 // ══════════════════════════════════════
-async function fetchOneCRR(slug) {
-  const url = `https://sailor-piece.vaultedvaluesx.com/sailor-piece/items/${slug}`;
-  const prompt = `Visit this exact URL: ${url}
-Read the page and extract the item data. Respond ONLY with valid JSON, no markdown:
-{"crr":"340","demand":"Moderate 1","stability":"Unstable","obtainable":true}
-If value looks like "1.65M" write it as-is. If page not found respond: {"error":"not found"}`;
+const CORS_PROXIES = [
+  slug => `https://api.allorigins.win/get?url=${encodeURIComponent('https://sailor-piece.vaultedvaluesx.com/sailor-piece/items/'+slug)}`,
+  slug => `https://corsproxy.io/?${encodeURIComponent('https://sailor-piece.vaultedvaluesx.com/sailor-piece/items/'+slug)}`,
+  slug => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent('https://sailor-piece.vaultedvaluesx.com/sailor-piece/items/'+slug)}`,
+];
 
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
-    method:'POST',
-    headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({
-      model:'claude-sonnet-4-20250514',
-      max_tokens:150,
-      tools:[{type:'web_search_20250305',name:'web_search'}],
-      messages:[{role:'user',content:prompt}]
-    })
-  });
-  const data = await res.json();
-  const text = (data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('');
-  const m = text.match(/\{[^{}]*\}/);
-  if (!m) throw new Error('no json');
-  const parsed = JSON.parse(m[0]);
-  if (parsed.error) return null;
-  return parsed;
+async function fetchOneCRR(slug) {
+  let html = null;
+
+  for (const proxyFn of CORS_PROXIES) {
+    try {
+      const proxyUrl = proxyFn(slug);
+      const res = await fetch(proxyUrl, { signal: AbortSignal.timeout(8000) });
+      if (!res.ok) continue;
+      const data = await res.json().catch(()=>null);
+      // allorigins wraps in {contents:...}, corsproxy returns raw text
+      if (data && data.contents) { html = data.contents; break; }
+      const txt = await res.text().catch(()=>null);
+      if (txt && txt.includes('CRR Value')) { html = txt; break; }
+    } catch { continue; }
+  }
+
+  if (!html) throw new Error('all proxies failed');
+
+  // Parse CRR value from HTML
+  // Pattern: "Current CRR Value\n\n340" or "CRR Value\n:   340"
+  let crr = null;
+  // Try: "Current CRR Value" followed by number
+  let m = html.match(/Current CRR Value[\s\S]{0,50}?(\d[\d,\.KkMm]+)/);
+  if (m) crr = m[1].replace(/,/g,'');
+
+  // Try: "CRR Value\n: NUMBER"
+  if (!crr) {
+    m = html.match(/CRR Value[\s\S]{0,30}?:\s*([\d,\.KkMm]+)/);
+    if (m) crr = m[1].replace(/,/g,'');
+  }
+
+  // Try: plain number after "CRR" near the top of content
+  if (!crr) {
+    m = html.match(/CRR[^<]{0,20}?(\d{2,})/);
+    if (m) crr = m[1];
+  }
+
+  if (!crr) return null;
+
+  // Parse demand
+  let demand = '';
+  const dm = html.match(/Demand[\s\S]{0,30}?:\s*([^\n<]{3,30})/);
+  if (dm) demand = dm[1].trim().replace(/\s+/g,' ');
+
+  // Parse stability
+  let stability = '';
+  const sm = html.match(/Stability[\s\S]{0,30}?:\s*([^\n<]{3,20})/);
+  if (sm) stability = sm[1].trim();
+
+  // Parse obtainable
+  const obtainable = html.includes('Obtainable') && !html.includes('Obtainable?\n:\n   No');
+
+  return { crr, demand, stability, obtainable };
 }
 
 // ══════════════════════════════════════
@@ -593,33 +629,44 @@ async function startVLFetch() {
 
   const total = ITEMS_UNIQUE.length;
   let done = 0;
+  let errCount = 0;
 
   for (const item of ITEMS_UNIQUE) {
     if (vlAbort) break;
     crrCache[item.slug] = 'loading';
-    renderVLGrid();
     setVLStatus(`Fetching ${done+1}/${total}: ${item.name}`, 'loading');
     setVLProgress((done/total)*100);
-    try {
-      const r = await fetchOneCRR(item.slug);
-      crrCache[item.slug] = r || 'error';
-    } catch {
-      crrCache[item.slug] = 'error';
+
+    let result = null;
+    // Retry once on fail
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        result = await fetchOneCRR(item.slug);
+        break;
+      } catch {
+        if (attempt === 0) await sleep(1200); // wait before retry
+      }
     }
+    crrCache[item.slug] = result || 'error';
+    if (!result) errCount++;
+
     done++;
     saveCRRCache();
     renderVLGrid();
-    updateLootCRRTags(); // also update loot page
+    updateLootCRRTags();
     updateShopCRR();
-    if (!vlAbort && done < total) await sleep(500);
+    if (done < 5) setVLProgress((done/total)*100); // update progress more often at start
+    if (!vlAbort && done < total) await sleep(700); // rate limit friendly
   }
 
   vlFetching = false;
   btn.textContent = '⟳ Fetch All Values';
   btn.style.background = '';
   setVLProgress(100);
-  setVLStatus(`✓ ${done} item di-fetch`, 'ok');
+  const okCount = done - errCount;
+  setVLStatus(`✓ ${okCount}/${done} berhasil${errCount>0?' · '+errCount+' error (proxy limit)':''}`, 'ok');
   document.getElementById('vl-update-time').textContent = new Date().toLocaleTimeString('id-ID');
+  renderVLGrid();
   saveCRRCache();
 }
 
@@ -663,15 +710,17 @@ async function fetchLootCRR() {
     setLootCRRStatus(`Fetching ${done+1}/${lootNames.length}: ${name}`,'loading');
     if (!crrCache[slug] || crrCache[slug]==='error') {
       crrCache[slug] = 'loading';
-      try {
-        const r = await fetchOneCRR(slug);
-        crrCache[slug] = r || 'error';
-      } catch { crrCache[slug]='error'; }
+      let result = null;
+      for (let attempt = 0; attempt < 2; attempt++) {
+        try { result = await fetchOneCRR(slug); break; }
+        catch { if(attempt===0) await sleep(1000); }
+      }
+      crrCache[slug] = result || 'error';
       saveCRRCache();
     }
     done++;
     updateLootCRRTags();
-    if (done < lootNames.length) await sleep(400);
+    if (done < lootNames.length) await sleep(600);
   }
   btn.disabled = false;
   setLootCRRStatus(`✓ Updated ${new Date().toLocaleTimeString('id-ID')}`, 'ok');
