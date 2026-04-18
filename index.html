@@ -521,27 +521,35 @@ const CORS_PROXIES = [
 ];
 
 function parseCRRFromHTML(html) {
-  // Primary: "Current CRR Value\n\nNUMBER" (exact pattern from real page)
-  let m = html.match(/Current CRR Value\s*\n\s*\n\s*([\d,\.KkMm]+)/);
+  // ── Pattern 1: new site layout "CURRENT CRR VALUE\n4" (all caps, gambar 2)
+  let m = html.match(/CURRENT\s+CRR\s+VALUE\s*\n\s*([\d,\.KkMm]+)/i);
   if (m) return m[1].replace(/,/g,'');
 
-  // Secondary: "Current CRR Value" followed by any whitespace then number
-  m = html.match(/Current CRR Value\s+([\d,\.KkMm]+)/);
+  // ── Pattern 2: "Current CRR Value\n\n4" (old layout, double newline)
+  m = html.match(/Current\s+CRR\s+Value\s*\n[\s\n]*([\d,\.KkMm]+)/i);
   if (m) return m[1].replace(/,/g,'');
 
-  // Tertiary: "CRR Value: NUMBER" from trade ads section (always present)
-  // Find FIRST occurrence which is the item's own CRR
-  m = html.match(/CRR Value:\s*([\d,\.KkMm]+)/);
+  // ── Pattern 3: any whitespace between label and number
+  m = html.match(/current\s+crr\s+value[\s\S]{0,30}?([\d,\.]+[KkMm]?)/i);
+  if (m) return m[1].replace(/,/g,'');
+
+  // ── Pattern 4: "CRR Value: 4" — ONLY grab the FIRST match
+  // (before trade ads section which repeats CRR values of other items)
+  // Cut HTML at "Trade ads" section to avoid false positives
+  const itemSection = html.split(/Trade ads|TRADE ADS/i)[0];
+  m = itemSection.match(/CRR Value[:\s]+([\d,\.KkMm]+)/i);
   if (m) return m[1].replace(/,/g,'');
 
   return null;
 }
 
 function parseDemandFromHTML(html) {
-  // Pattern: "Demand\n\nHigh - 6" or "Demand\n:\n   High - 6"
-  let m = html.match(/\bDemand\b[\s\S]{0,5}\n\s*\n\s*([^\n<]{2,30})/);
+  // New layout: "DEMAND\nMedium 2" or "Demand\n\nMedium 2"
+  let m = html.match(/DEMAND\s*\n\s*([\w\s\-]+?)(?:\n|$)/i);
   if (m) return m[1].trim();
-  m = html.match(/Demand\s*:\s*([^\n<]{2,30})/);
+  m = html.match(/Demand\s*\n\s*\n\s*([^\n<]{2,30})/i);
+  if (m) return m[1].trim();
+  m = html.match(/Demand\s*:\s*([^\n<]{2,30})/i);
   if (m) return m[1].trim();
   return '';
 }
@@ -578,15 +586,20 @@ async function fetchOneCRR(slug) {
   if (!html) throw new Error('all proxies failed: ' + lastErr);
 
   const crr = parseCRRFromHTML(html);
-  if (!crr) return null; // page exists but no value (e.g. range "500K-600K" handled below)
+  if (!crr) return null;
 
-  // Handle range values like "500K-600K" — take midpoint or first
-  const rangeCRR = html.match(/Current CRR Value[\s\S]{0,10}([\d\.]+[KkMm]?)\s*[-–]\s*([\d\.]+[KkMm]?)/);
+  // Handle range values like "500K-600K"
+  const rangeCRR = html.match(/(?:CURRENT\s+CRR\s+VALUE|Current\s+CRR\s+Value)[\s\S]{0,20}([\d\.]+[KkMm]?)\s*[-–]\s*([\d\.]+[KkMm]?)/i);
   const finalCRR = rangeCRR ? rangeCRR[1]+'-'+rangeCRR[2] : crr;
 
   const demand = parseDemandFromHTML(html);
-  const stability = (html.match(/Stability\s*\n\s*\n\s*([^\n<]{3,20})/) || html.match(/Stability\s*:\s*([^\n<]{3,20})/) || [])[1]?.trim() || '';
-  const obtainable = /Obtainable\?[\s\S]{0,20}Yes/.test(html);
+
+  // Stability: "STABILITY\nStable" or "Stability\n\nStable"
+  const stabM = html.match(/STABILITY\s*\n\s*([^\n<]{3,20})/i)
+             || html.match(/Stability[\s\S]{0,10}\n\s*([^\n<]{3,20})/i);
+  const stability = stabM ? stabM[1].trim() : '';
+
+  const obtainable = /Obtainable[\s\S]{0,20}Yes/i.test(html);
 
   return { crr: finalCRR, demand, stability, obtainable };
 }
